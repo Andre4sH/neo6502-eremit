@@ -1,0 +1,229 @@
+' clear screen & load sprites
+cls:sprite clear:
+
+' load the graphics file built in
+gload "graphics.gfx":
+
+' Declare level structure
+dim level(10,10)
+dim level_backup(10,10)
+
+' Load level data
+for y=0 to 10
+	for x=0 to 10	
+		read tmpI
+		level_backup(x,y) = tmpI	
+	next x
+next y	
+
+' Level screen offset
+level_x = 72
+level_y = 40
+
+' Other variables
+selection_x=-1
+selection_y=-1
+cursor_x = 5
+cursor_y = 5
+dx = 0
+dy = 0
+pegs = 0
+
+game_over = false
+
+screen_dirty = true 
+
+' Main game loop
+repeat
+	call init_game()
+	
+	repeat
+		if event(t1,4): ' this returns true once every 3/100 of a second using t1 to track it. 
+			call handle_input()
+			if screen_dirty then call draw_screen()
+		endif
+	until game_over
+	
+	call gameover_screen()
+		
+until false
+
+proc gameover_screen()
+	if pegs = 1
+		text " You made it! " dim 2 ink 1 to 80, 200: ' solid here means black background rather than transparent
+		sfx 0, 11
+	else
+		text " Gameover " dim 2 ink 1 to 100, 200: ' solid here means black background rather than transparent
+		sfx 0, 10
+	endif
+	
+	repeat 
+		btn = joypad(dx, dy)
+	until btn&1
+endproc
+
+proc init_game()
+	' Restore variables
+	game_over = false
+	selection_x=-1
+	selection_y=-1
+	screen_dirty = true
+
+	cursor_x = 5
+	cursor_y = 5
+	pegs = 0
+	
+	' Restore level
+	for y=0 to 10
+		for x=0 to 10	
+			level(x, y) = level_backup(x,y)
+			if level(x, y) = 1 then pegs = pegs + 1
+		next x
+	next y	
+	
+	' Draw background
+	for x=0 to 10
+		for y=0 to 10
+			image 0 dim 2 to x*32,y*32
+		next y	
+	next x
+
+	text "  Eremit  " dim 2 ink 15 to 100, 15
+endproc
+
+proc draw_rect(x, y, w, h, color)
+	rect x, y frame ink color to x+w, y+h 
+endproc
+
+proc draw_screen()
+	' draw the level
+	
+	for y=0 to 10
+		for x=0 to 10
+			if level(x,y) = 0: 
+				image 0 dim 1 to level_x+x*16,level_y+y*16
+			endif
+			if level(x,y) = 1: 
+				image 1 dim 1 to level_x+x*16,level_y+y*16
+			endif
+			if level(x,y) = 2: 
+				image 2 dim 1 to level_x+x*16,level_y+y*16
+			endif
+		next x		
+	next y
+
+	' draw cursor selection
+	call draw_rect(level_x+cursor_x*16, level_y+cursor_y*16, 16, 16, 2)
+
+	' draw selection if avalible
+	if selection_x <> -1 & selection_y <> -1
+		call draw_rect(level_x+selection_x*16, level_y+selection_y*16, 16, 16, 1)
+	endif
+	
+	rect 0, 0 solid ink 13 to 100, 20
+	text " Pegs left: "+str$(pegs) ink 15 frame to 5, 5
+	
+	screen_dirty = false
+endproc
+
+proc check_gameover()
+	' Game over, the player win
+	if pegs = 1 
+		game_over = true
+	else 
+		game_over = true
+		for y=0 to 10
+			for x=0 to 10
+				if level(x,y) = 1 
+					if level(x+1,y) = 1 then game_over = false
+					if level(x-1,y) = 1 then game_over = false
+					if level(x,y+1) = 1 then game_over = false
+					if level(x,y-1) = 1 then game_over = false
+				endif
+			next x		
+		next y
+	endif	
+endproc
+
+proc a_button_pressed()
+	screen_dirty = true
+	
+	' true when we dont have a previous selection
+	if selection_x = -1 & selection_y = -1
+	
+		' set selection if cursor have a peg
+		if level(cursor_x, cursor_y) = 1
+			selection_x = cursor_x
+			selection_y = cursor_y
+		endif
+	
+	' When we have a valid selsection
+	else 
+		dx = abs(cursor_x - selection_x)
+		dy = abs(cursor_y - selection_y)
+		
+		mx = (cursor_x + selection_x) / 2
+		my = (cursor_y + selection_y) / 2
+		
+		' Check if the move is valid
+		if (dx = 2 & dy = 0) | (dy = 2 & dx = 0)
+		
+			' Destination must be empty and the in between peg exists
+			if (level(cursor_x, cursor_y) = 2) & (level(mx, my) = 1)
+				level(cursor_x, cursor_y) = 1
+				level(mx, my) = 2
+				level(selection_x, selection_y) = 2
+				selection_x = -1
+				selection_y = -1
+				pegs = pegs - 1
+				
+				' Check if the game is over
+				call check_gameover()
+			endif
+		endif
+	endif
+endproc
+
+proc b_button_pressed()
+	screen_dirty = true
+	
+	selection_x=-1
+	selection_y=-1
+endproc
+
+proc handle_movement(dx, dy)	
+	if (dx = 0) & (dy = 0) then endproc
+
+	newx = cursor_x + dx
+	newy = cursor_y + dy
+	
+	if level(newx, newy) <> 0:
+		screen_dirty = true
+		
+		cursor_x = newx
+		cursor_y = newy
+	endif
+endproc
+
+proc handle_input()
+	btn = joypad(dx, dy)
+
+	call handle_movement(dx, dy)
+
+	if btn&1 then call a_button_pressed()	
+	if btn&2 then call b_button_pressed()
+endproc
+
+' level data
+data 0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0
+data 0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0
+data 0,	0,	0,	0,	1,	1,	1,	0,	0,	0,	0
+data 0,	0,	0,	0,	1,	1,	1,	0,	0,	0,	0
+data 0,	0,	1,	1,	1,	1,	1,	1,	1,	0,	0
+data 0,	0,	1,	1,	1,	2,	1,	1,	1,	0,	0
+data 0,	0,	1,	1,	1,	1,	1,	1,	1,	0,	0
+data 0,	0,	0,	0,	1,	1,	1,	0,	0,	0,	0
+data 0,	0,	0,	0,	1,	1,	1,	0,	0,	0,	0
+data 0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0
+data 0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0
+
