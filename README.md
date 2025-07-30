@@ -2,6 +2,10 @@
 Peg Solitaire, Solo Noble, Solo Goli, Marble Solitaire or simply Solitaire is a board game for one player involving movement of pegs on a board with holes.
 **Eremit** is a classic peg solitaire-style puzzle game written in a BASIC. The objective is simple: eliminate pegs by jumping over them until only one remains.
 
+This game is written for the NEO6502 single board computer. 
+
+For more information about this computer https://neo6502.com/.
+
 ## 🧠 Rules
 
 - You may only jump horizontally or vertically over one adjacent peg into an empty cell.
